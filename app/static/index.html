@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Newtonite Ops Coordinator | Operational Work &amp; Incident Management</title>
+  <meta name="description" content="Operational coordination platform for incident response, customer escalations, approvals, and cross-team governance — replacing fragmented chat, emails, and spreadsheets.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+  <!-- ====== TOP NAVIGATION HEADER ====== -->
+  <header class="app-header" role="banner">
+    <div class="brand-section">
+      <div class="logo-badge" aria-hidden="true">N</div>
+      <div>
+        <h1 class="brand-title">Newtonite Ops Coordinator</h1>
+        <p class="brand-subtitle">Cross-Team Operational Governance Platform</p>
+      </div>
+    </div>
+
+    <!-- Live System Status -->
+    <div class="header-status-bar" aria-label="System status">
+      <div class="status-indicator">
+        <div class="status-dot" title="System operational"></div>
+        <span>System Operational</span>
+      </div>
+      <div class="status-indicator" style="background:rgba(56,189,248,0.08); border-color:rgba(56,189,248,0.2); color:var(--s-triage);" id="headerLiveCount">
+        <span>Loading...</span>
+      </div>
+    </div>
+
+    <!-- Persona Switcher -->
+    <div class="user-persona-section">
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.25rem;">
+        <span class="persona-label">Active Persona</span>
+        <div class="user-teams-badge" id="userTeamsBadges" aria-label="User teams"></div>
+      </div>
+      <div class="persona-dropdown-container">
+        <div class="persona-avatar" id="userAvatarInitial" aria-hidden="true">A</div>
+        <select class="persona-select" id="personaSelect" aria-label="Select active user persona">
+          <!-- Populated dynamically via JS -->
+        </select>
+      </div>
+      <button class="btn btn-reset" id="btnResetDemo" title="Reset database to clean default state">
+        ↺ Reset Demo
+      </button>
+    </div>
+  </header>
+
+  <!-- ====== NAVIGATION TABS ====== -->
+  <nav class="nav-tabs" aria-label="Primary navigation">
+    <button class="nav-tab-btn active" data-tab="dashboard" id="tab-btn-dashboard" aria-selected="true">
+      <span aria-hidden="true">📊</span> Overview Dashboard
+    </button>
+    <button class="nav-tab-btn" data-tab="items" id="tab-btn-items" aria-selected="false">
+      <span aria-hidden="true">📋</span> Work Items
+    </button>
+    <button class="nav-tab-btn" data-tab="simulator" id="tab-btn-simulator" aria-selected="false">
+      <span aria-hidden="true">⚡</span> Critical Behaviors
+    </button>
+    <button class="nav-tab-btn" data-tab="async" id="tab-btn-async" aria-selected="false">
+      <span aria-hidden="true">⚙️</span> Async Jobs
+    </button>
+  </nav>
+
+  <!-- ====== MAIN APPLICATION BODY ====== -->
+  <main class="app-content" role="main">
+
+    <!-- ===================== TAB 1: DASHBOARD ===================== -->
+    <section id="tabDashboard" role="tabpanel" aria-labelledby="tab-btn-dashboard">
+
+      <!-- KPI Cards -->
+      <div class="kpi-grid" aria-label="Key performance indicators">
+        <div class="kpi-card kpi-active" aria-label="Active work items">
+          <div class="kpi-header">
+            <span class="kpi-title">Active Items</span>
+            <span class="kpi-icon" aria-hidden="true">⚡</span>
+          </div>
+          <div class="kpi-value" id="kpiActiveCount">—</div>
+          <div class="kpi-subtext">Across all operational queues</div>
+        </div>
+
+        <div class="kpi-card kpi-triage" aria-label="Items needing triage">
+          <div class="kpi-header">
+            <span class="kpi-title">Triage Needed</span>
+            <span class="kpi-icon" aria-hidden="true">📥</span>
+          </div>
+          <div class="kpi-value" id="kpiTriageCount">—</div>
+          <div class="kpi-subtext">Unassigned items requiring action</div>
+        </div>
+
+        <div class="kpi-card kpi-approvals" aria-label="Pending approvals">
+          <div class="kpi-header">
+            <span class="kpi-title">Pending Approvals</span>
+            <span class="kpi-icon" aria-hidden="true">⏳</span>
+          </div>
+          <div class="kpi-value" id="kpiPendingApprovals">—</div>
+          <div class="kpi-subtext">Awaiting team sign-off</div>
+        </div>
+
+        <div class="kpi-card kpi-breach" aria-label="SLA breaches">
+          <div class="kpi-header">
+            <span class="kpi-title">SLA Breaches</span>
+            <span class="kpi-icon" aria-hidden="true">🚨</span>
+          </div>
+          <div class="kpi-value" id="kpiSlaBreaches">—</div>
+          <div class="kpi-subtext">Exceeded target resolution time</div>
+        </div>
+
+        <div class="kpi-card kpi-myitems" aria-label="My assigned items">
+          <div class="kpi-header">
+            <span class="kpi-title">My Items</span>
+            <span class="kpi-icon" aria-hidden="true">👤</span>
+          </div>
+          <div class="kpi-value" id="kpiMyItems">—</div>
+          <div class="kpi-subtext">Assigned to current persona</div>
+        </div>
+      </div>
+
+      <!-- Priority Breakdown Bar -->
+      <div style="margin-bottom:1.5rem;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;">
+          <span class="section-title">Active Items by Priority</span>
+          <div style="display:flex;gap:0.75rem;font-size:0.68rem;color:var(--text-muted);align-items:center;" id="priorityLegend">
+            <span style="color:var(--p0);">● P0 Critical</span>
+            <span style="color:var(--p1);">● P1 High</span>
+            <span style="color:var(--p2);">● P2 Medium</span>
+            <span style="color:var(--p3);">● P3 Low</span>
+          </div>
+        </div>
+        <div class="priority-breakdown-bar" id="priorityBreakdownBar" aria-label="Priority breakdown chart">
+          <div class="priority-bar-segment pb-p0" style="width:0%" title="P0 Critical"></div>
+          <div class="priority-bar-segment pb-p1" style="width:0%" title="P1 High"></div>
+          <div class="priority-bar-segment pb-p2" style="width:0%" title="P2 Medium"></div>
+          <div class="priority-bar-segment pb-p3" style="width:0%" title="P3 Low"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:0.65rem;color:var(--text-muted);margin-top:0.35rem;" id="priorityBreakdownLabels"></div>
+      </div>
+
+      <!-- Attention Queue Grid -->
+      <div class="section-header">
+        <span class="section-title">Live Attention Queues</span>
+        <span style="font-size:0.72rem;color:var(--text-muted);">Top 5 per category · Click any item to open details</span>
+      </div>
+
+      <div class="dashboard-queues-grid" role="region" aria-label="Work item queues">
+
+        <!-- Triage Queue -->
+        <div class="queue-card">
+          <div class="queue-header">
+            <div class="queue-title-wrapper">
+              <span style="color:var(--s-triage);" aria-hidden="true">📥</span>
+              <span class="queue-title">Triage Queue</span>
+              <span class="queue-count-badge" id="triageBadgeCount">0</span>
+            </div>
+            <button class="btn btn-secondary" style="font-size:0.72rem;padding:0.25rem 0.55rem;" onclick="switchTab('items')">View All</button>
+          </div>
+          <div class="queue-items-list" id="queueTriageList" role="list" aria-label="Triage items"></div>
+        </div>
+
+        <!-- Approvals Queue -->
+        <div class="queue-card">
+          <div class="queue-header">
+            <div class="queue-title-wrapper">
+              <span style="color:var(--s-approval);" aria-hidden="true">⏳</span>
+              <span class="queue-title">Pending Approvals</span>
+              <span class="queue-count-badge" id="approvalsBadgeCount">0</span>
+            </div>
+            <button class="btn btn-secondary" style="font-size:0.72rem;padding:0.25rem 0.55rem;" onclick="switchTab('items')">View All</button>
+          </div>
+          <div class="queue-items-list" id="queueApprovalsList" role="list" aria-label="Approval items"></div>
+        </div>
+
+        <!-- SLA Risk Queue -->
+        <div class="queue-card">
+          <div class="queue-header">
+            <div class="queue-title-wrapper">
+              <span style="color:var(--p0);" aria-hidden="true">🚨</span>
+              <span class="queue-title">SLA Risk &amp; Breaches</span>
+              <span class="queue-count-badge" style="background:rgba(255,71,87,0.12);color:var(--p0);border-color:rgba(255,71,87,0.25);" id="slaBadgeCount">0</span>
+            </div>
+            <button class="btn btn-secondary" style="font-size:0.72rem;padding:0.25rem 0.55rem;" onclick="switchTab('items')">View All</button>
+          </div>
+          <div class="queue-items-list" id="queueSlaList" role="list" aria-label="SLA risk items"></div>
+        </div>
+
+        <!-- My Items Queue -->
+        <div class="queue-card">
+          <div class="queue-header">
+            <div class="queue-title-wrapper">
+              <span style="color:var(--s-progress);" aria-hidden="true">👤</span>
+              <span class="queue-title">My Open Work Items</span>
+              <span class="queue-count-badge" style="background:rgba(52,211,153,0.12);color:var(--s-progress);border-color:rgba(52,211,153,0.25);" id="myItemsBadgeCount">0</span>
+            </div>
+            <button class="btn btn-secondary" style="font-size:0.72rem;padding:0.25rem 0.55rem;" onclick="switchTab('items')">View All</button>
+          </div>
+          <div class="queue-items-list" id="queueMyItemsList" role="list" aria-label="My assigned items"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== TAB 2: WORK ITEMS EXPLORER ===================== -->
+    <section id="tabItems" style="display:none;" role="tabpanel" aria-labelledby="tab-btn-items">
+
+      <!-- Filter Toolbar -->
+      <div class="filter-toolbar" role="search" aria-label="Work items search and filters">
+        <div class="filter-group">
+          <div class="search-wrapper">
+            <span class="search-icon" aria-hidden="true">🔍</span>
+            <input type="search" class="search-input" id="filterSearch" placeholder="Search title or description…" aria-label="Search work items">
+          </div>
+
+          <select class="filter-select" id="filterStatus" aria-label="Filter by status">
+            <option value="">All Statuses</option>
+            <option value="TRIAGE">Triage</option>
+            <option value="IN_INVESTIGATION">In Investigation</option>
+            <option value="PENDING_APPROVAL">Pending Approval</option>
+            <option value="IN_PROGRESS">In Progress</option>
+            <option value="BLOCKED">Blocked</option>
+            <option value="RESOLVED">Resolved</option>
+            <option value="CANCELLED">Cancelled</option>
+          </select>
+
+          <select class="filter-select" id="filterPriority" aria-label="Filter by priority">
+            <option value="">All Priorities</option>
+            <option value="P0">P0 — Critical</option>
+            <option value="P1">P1 — High</option>
+            <option value="P2">P2 — Medium</option>
+            <option value="P3">P3 — Low</option>
+          </select>
+
+          <select class="filter-select" id="filterTeam" aria-label="Filter by team">
+            <option value="">All Teams</option>
+            <option value="tier1_support">Tier 1 Support</option>
+            <option value="incident_response">Incident Response</option>
+            <option value="secops">SecOps</option>
+            <option value="finance_approvals">Finance Approvals</option>
+            <option value="ops_admin">Ops Admin</option>
+          </select>
+
+          <select class="filter-select" id="filterSla" aria-label="Filter by SLA risk">
+            <option value="">All SLA Levels</option>
+            <option value="BREACHED">🚨 Breached</option>
+            <option value="WARN">⚠️ At Risk</option>
+            <option value="NORMAL">✓ Normal</option>
+          </select>
+        </div>
+
+        <button class="btn btn-primary" id="btnOpenCreateModal" aria-controls="createItemModal">
+          <span aria-hidden="true">＋</span> New Work Item
+        </button>
+      </div>
+
+      <!-- Items Table -->
+      <div class="table-container" role="region" aria-label="Work items table">
+        <table class="data-table" aria-label="Operational work items">
+          <thead>
+            <tr>
+              <th style="width:80px;" scope="col">Priority</th>
+              <th scope="col">Title &amp; Purpose</th>
+              <th style="width:130px;" scope="col">Category</th>
+              <th style="width:135px;" scope="col">Status</th>
+              <th style="width:165px;" scope="col">Team</th>
+              <th style="width:160px;" scope="col">Assignee</th>
+              <th style="width:115px;" scope="col">SLA State</th>
+            </tr>
+          </thead>
+          <tbody id="workItemsTableBody">
+            <!-- Populated dynamically -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      <div class="pagination-bar" role="navigation" aria-label="Table pagination">
+        <span class="pagination-info" id="paginationInfo" aria-live="polite">Showing 0 items</span>
+        <div class="pagination-controls">
+          <button class="btn btn-secondary" id="btnPrevPage" aria-label="Previous page" disabled>← Prev</button>
+          <button class="btn btn-secondary" id="btnNextPage" aria-label="Next page" disabled>Next →</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== TAB 3: CRITICAL BEHAVIORS SIMULATOR ===================== -->
+    <section id="tabSimulator" style="display:none;" role="tabpanel" aria-labelledby="tab-btn-simulator">
+      <div class="simulator-card">
+        <div class="simulator-header">
+          <span aria-hidden="true">⚡</span> Critical Architectural Behaviors — Interactive Test Bench
+        </div>
+        <p class="simulator-description">
+          These live tests demonstrate the <strong>four critical correctness behaviors</strong> required beyond simple CRUD:
+          Optimistic Concurrency Control (OCC), atomic conditional claims preventing race conditions,
+          request deduplication with idempotency-key replay, and server-enforced RBAC authorization.
+          Each test dispatches <em>real HTTP mutations</em> against the backend — no mocking.
+        </p>
+
+        <div class="simulator-actions">
+          <button class="btn btn-primary" id="simBtn1" onclick="simulateRaceConditionClaim()">
+            <span aria-hidden="true">🏁</span> 1. Concurrent Race Condition Claim
+          </button>
+          <button class="btn btn-secondary" id="simBtn2" onclick="simulateStaleOCCUpdate()">
+            <span aria-hidden="true">⚠️</span> 2. Stale OCC Version Conflict (409)
+          </button>
+          <button class="btn btn-secondary" id="simBtn3" onclick="simulateIdempotencyReplay()">
+            <span aria-hidden="true">🔄</span> 3. Idempotency-Key Network Retry Replay
+          </button>
+          <button class="btn btn-danger" id="simBtn4" onclick="simulateCrossTeamUnauthorized()">
+            <span aria-hidden="true">🔒</span> 4. Cross-Team Unauthorized Claim (403)
+          </button>
+        </div>
+
+        <div class="simulator-result-box" id="simResultBox" role="log" aria-live="polite" aria-label="Simulation results">
+<span class="sim-info">// Ready — click a test button to dispatch live HTTP mutations and verify server-side behavior.</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== TAB 4: ASYNC JOBS INSPECTOR ===================== -->
+    <section id="tabAsyncJobs" style="display:none;" role="tabpanel" aria-labelledby="tab-btn-async">
+      <div class="jobs-header">
+        <div>
+          <div class="jobs-title">Asynchronous Secondary Job Queue</div>
+          <div class="jobs-subtitle">
+            Secondary processing — SLA risk evaluation, multi-channel notification dispatch — with exponential backoff &amp; dead-letter routing.
+            Jobs are enqueued transactionally within the same DB write as the primary action (transactional outbox pattern).
+          </div>
+        </div>
+        <button class="btn btn-primary" id="btnRunJobs" onclick="triggerDueAsyncJobs()" style="flex-shrink:0;">
+          <span aria-hidden="true">▶</span> Run Due Jobs Now
+        </button>
+      </div>
+
+      <div class="table-container">
+        <table class="data-table" aria-label="Async background jobs">
+          <thead>
+            <tr>
+              <th scope="col">Job ID</th>
+              <th scope="col">Type</th>
+              <th scope="col">Work Item</th>
+              <th scope="col">Status</th>
+              <th scope="col">Attempts</th>
+              <th scope="col">Scheduled Run</th>
+              <th scope="col">Last Error</th>
+            </tr>
+          </thead>
+          <tbody id="asyncJobsTableBody">
+            <!-- Populated dynamically -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ===================== WORK ITEM DETAIL DRAWER ===================== -->
+  <div class="modal-overlay" id="itemDetailModal" role="dialog" aria-modal="true" aria-labelledby="detailTitle">
+    <div class="modal-container">
+      <div class="modal-header">
+        <div style="flex:1;min-width:0;">
+          <div class="detail-header-meta" id="detailHeaderMeta">
+            <!-- Priority + Status + Category badges injected here -->
+          </div>
+          <h2 style="font-size:1.1rem;font-weight:800;letter-spacing:-0.02em;line-height:1.3;" id="detailTitle">Work Item</h2>
+        </div>
+        <button class="btn btn-secondary" id="btnCloseDetailModal" aria-label="Close detail panel" style="padding:0.3rem 0.65rem;flex-shrink:0;">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Metadata grid -->
+        <div class="detail-meta-grid" role="list" aria-label="Work item metadata">
+          <div role="listitem">
+            <div class="meta-field-label">Status</div>
+            <div id="detailStatus" class="meta-field-value">—</div>
+          </div>
+          <div role="listitem">
+            <div class="meta-field-label">Priority</div>
+            <div id="detailPriority" class="meta-field-value">—</div>
+          </div>
+          <div role="listitem">
+            <div class="meta-field-label">Assigned Team</div>
+            <div id="detailTeam" class="meta-field-value">—</div>
+          </div>
+          <div role="listitem">
+            <div class="meta-field-label">Responsible Owner</div>
+            <div id="detailAssignee" class="meta-field-value">—</div>
+          </div>
+          <div role="listitem">
+            <div class="meta-field-label">OCC Version</div>
+            <div id="detailVersion" class="meta-field-value font-mono">—</div>
+          </div>
+          <div role="listitem">
+            <div class="meta-field-label">SLA Window</div>
+            <div id="detailSla" class="meta-field-value">—</div>
+          </div>
+          <div role="listitem">
+            <div class="meta-field-label">Created</div>
+            <div id="detailCreated" class="meta-field-value">—</div>
+          </div>
+        </div>
+
+        <!-- Description -->
+        <div class="section-label"><span aria-hidden="true">📄</span> Purpose &amp; Description</div>
+        <div class="description-box" id="detailDescription"></div>
+
+        <!-- Next Actions -->
+        <div class="action-section-box">
+          <div class="action-section-title">
+            <span aria-hidden="true">⚡</span> Next Required Actions <span style="color:var(--text-muted);font-weight:500;font-size:0.7rem;">(Workflow Guards &amp; RBAC Enforced)</span>
+          </div>
+          <div class="action-buttons-container" id="nextActionsContainer" role="group" aria-label="Available actions"></div>
+        </div>
+
+        <!-- Comment input -->
+        <div class="section-label" style="margin-bottom:0.5rem;"><span aria-hidden="true">💬</span> Add Operational Comment</div>
+        <div class="comment-row">
+          <input type="text" id="newCommentInput" class="comment-input"
+            placeholder="Type an update, diagnosis note, or status remark…"
+            aria-label="Comment text">
+          <button class="btn btn-secondary" id="btnPostComment" onclick="addCommentToCurrentItem()" aria-label="Post comment">Post</button>
+        </div>
+
+        <!-- Audit Timeline -->
+        <div class="section-label"><span aria-hidden="true">📜</span> Visible History &amp; Immutable Audit Trail</div>
+        <div class="timeline-list" id="auditTimelineList" role="list" aria-label="Audit timeline"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== CREATE WORK ITEM MODAL ===================== -->
+  <div class="modal-overlay modal-center" id="createItemModal" role="dialog" aria-modal="true" aria-labelledby="createModalTitle">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h2 style="font-size:1rem;font-weight:800;" id="createModalTitle">Create Operational Work Item</h2>
+        <button class="btn btn-secondary" id="btnCloseCreateModal" aria-label="Close create modal" style="padding:0.3rem 0.65rem;">✕</button>
+      </div>
+
+      <form id="createItemForm" novalidate>
+        <div class="modal-body" style="display:flex;flex-direction:column;gap:1rem;">
+          <div class="form-group">
+            <label class="form-label" for="createTitle">Title <span style="color:var(--p0);">*</span></label>
+            <input type="text" id="createTitle" class="form-input" required
+              placeholder="e.g. Payment Webhook Timeout Ingestion Spike"
+              minlength="3" maxlength="150" aria-required="true">
+          </div>
+
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label" for="createCategory">Category</label>
+              <select id="createCategory" class="form-select" aria-label="Select category">
+                <option value="incident">Operational Incident</option>
+                <option value="customer_issue">Customer Issue</option>
+                <option value="approval_request">Approval Request</option>
+                <option value="operational_task">Operational Task</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="createPriority">Priority &amp; SLA</label>
+              <select id="createPriority" class="form-select" aria-label="Select priority">
+                <option value="P0">P0 — Critical (60 min SLA)</option>
+                <option value="P1">P1 — High (120 min SLA)</option>
+                <option value="P2" selected>P2 — Medium (8 hr SLA)</option>
+                <option value="P3">P3 — Low (24 hr SLA)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="createTeam">Assigned Responsible Team</label>
+            <select id="createTeam" class="form-select" aria-label="Select team">
+              <option value="tier1_support">Tier 1 Customer Support</option>
+              <option value="incident_response">Incident Response Engineering</option>
+              <option value="secops">Security Operations (SecOps)</option>
+              <option value="finance_approvals">Finance &amp; Commercial Approvals</option>
+              <option value="ops_admin">Operations Administration</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="createDescription">Purpose &amp; Description <span style="color:var(--p0);">*</span></label>
+            <textarea id="createDescription" class="form-textarea" required rows="4"
+              placeholder="Describe the operational situation, symptoms, impact, or required approval context…"
+              minlength="5" maxlength="5000" aria-required="true"></textarea>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="btnCancelCreate">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="btnSubmitCreate">
+            <span aria-hidden="true">＋</span> Create Work Item
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast container -->
+  <div class="toast-container" id="toastContainer" aria-live="assertive" aria-atomic="true" role="status"></div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
